@@ -1,6 +1,9 @@
 import pandas as pd
+import geopandas as gpd
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
+import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
 
 # Cargar archivo Excel
 archivo = "Datos.xlsx"
@@ -46,5 +49,38 @@ df["Clasificación Solar"] = df["Cluster"].map(etiquetas)
 # Guardar resultado
 df_resultado = df[["Departamento", "Clasificación Solar"]]
 df_resultado.to_excel("Clasificación_Solar.xlsx", index=False)
-
 print("✅ Archivo 'Clasificación_Solar.xlsx' generado correctamente.")
+
+# Cargar mapa de Colombia
+mapa_colombia = gpd.read_file("Colombia.geo.json")
+
+# Normalizar nombres del GeoDataFrame
+mapa_colombia["NOMBRE_DPT"] = mapa_colombia["NOMBRE_DPT"].str.strip().str.title()
+
+# Hacer merge para mapa
+mapa_colombia = mapa_colombia.merge(df_resultado, left_on="NOMBRE_DPT", right_on="Departamento", how="left")
+
+# Ver departamentos sin datos
+faltantes = mapa_colombia[mapa_colombia["Clasificación Solar"].isna()]
+if not faltantes.empty:
+    print("⚠️ Departamentos sin datos:", faltantes["NOMBRE_DPT"].tolist())
+
+# Crear y guardar el mapa como imagen con colores de naranja a rojo
+colores = ["#FFA07A", "#FF4500", "#8B0000"]  # Naranja claro, naranja oscuro, rojo oscuro
+cmap = ListedColormap(colores)
+
+fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+mapa_colombia.plot(
+    column="Clasificación Solar",
+    ax=ax,
+    legend=True,
+    legend_kwds={"title": "Clasificación Solar"},
+    cmap=cmap,
+    edgecolor="black",
+    missing_kwds={"color": "lightgrey", "label": "Sin datos"}
+)
+ax.set_title("Clasificación Solar por Departamento")
+ax.axis("off")
+plt.savefig("mapa_solar.png", bbox_inches="tight", dpi=300)
+plt.close()
+print("🗺️ Mapa guardado como 'mapa_solar.png'")
